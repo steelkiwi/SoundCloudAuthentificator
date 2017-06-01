@@ -9,17 +9,17 @@
 import UIKit
 
 protocol SoundCloudLoginResultsDelegate: class {
-    func didSucceed(loginViewController: SoundCloudLoginViewController, authResult: AuthenticationResult)
-    func didFail(loginViewController: SoundCloudLoginViewController, error: NSError?)
+    func didSucceed(loginVC: SoundCloudLoginViewController, authResult: AuthenticationResult)
+    func didFail(loginVC: SoundCloudLoginViewController, error: Error?)
 }
 
 class SoundCloudLoginViewController: UIViewController {
     
-    private var authenticator: SoundCloudAuthenticator?
-    weak var delegate: SoundCloudLoginResultsDelegate?
+    fileprivate var authenticator   : SoundCloudAuthenticator?
+    public weak var delegate        : SoundCloudLoginResultsDelegate?
     
-    @IBOutlet private weak var webView: UIWebView!
-    @IBOutlet private weak var loader: UIActivityIndicatorView!
+    @IBOutlet fileprivate weak var webView  : UIWebView!
+    @IBOutlet fileprivate weak var loader   : UIActivityIndicatorView!
     
     // MARK: - Init
     
@@ -27,13 +27,13 @@ class SoundCloudLoginViewController: UIViewController {
         super.viewDidLoad()
         
         authenticator = SoundCloudAuthenticator(oauthState: OAuthState(
-            clientId: SoundCloudClientID,
-            clientSecret: SoundCloudClientSecret,
-            redirectUri: SoundCloudRedirectURI,
-            responseType: OAuthResponseType.Token))
+            clientId: "",       //SoundCloud ClientID,
+            clientSecret: "",   //SoundCloud ClientSecret,
+            redirectUri: "",    //SoundCloud RedirectURI,
+            responseType: .token))
     }
     
-    override func viewWillAppear(animated: Bool) {
+    override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         
         startAuthorization()
@@ -43,9 +43,9 @@ class SoundCloudLoginViewController: UIViewController {
     
     private func startAuthorization() {
         if let authenticator = self.authenticator,
-            webView = self.webView {
-                let url = authenticator.buildLoginURL()
-                webView.loadRequest(NSURLRequest(URL: url))
+            let webView = self.webView {
+            let url = authenticator.buildLoginURL()
+            webView.loadRequest(URLRequest(url: url))
         }
     }
 }
@@ -54,29 +54,33 @@ class SoundCloudLoginViewController: UIViewController {
 
 extension SoundCloudLoginViewController : UIWebViewDelegate {
     
-    func webView(webView: UIWebView, shouldStartLoadWithRequest request: NSURLRequest, navigationType: UIWebViewNavigationType) -> Bool {
-        let url = request.URL!
-        if let authenticator = self.authenticator where authenticator.isOAuthResponse(url) {
-            dismissViewControllerAnimated(true, completion: {
-                if let authResult = authenticator.resultFromAuthenticationResponse(url), delegate = self.delegate {
-                    delegate.didSucceed(self, authResult: authResult)
+    func webView(_ webView: UIWebView, shouldStartLoadWith request: URLRequest, navigationType: UIWebViewNavigationType) -> Bool {
+        let url = request.url!
+        
+        if let authenticator = self.authenticator,
+            authenticator.isOAuthResponse(url: url) {
+            
+            dismiss(animated: true, completion: {
+                if let authResult = authenticator.resultFromAuthenticationResponse(url: url),
+                    let delegate = self.delegate {
+                    delegate.didSucceed(loginVC: self, authResult: authResult)
                 } else if let delegate = self.delegate {
-                    delegate.didFail(self, error: nil)
+                    delegate.didFail(loginVC: self, error: nil)
                 }
             })
         }
         return true
     }
     
-    func webViewDidFinishLoad(webView: UIWebView) {
-        loader.hidden = true
+    func webViewDidFinishLoad(_ webView: UIWebView) {
+        loader.isHidden = true
     }
     
-    func webView(webView: UIWebView, didFailLoadWithError error: NSError?) {
+    func webView(_ webView: UIWebView, didFailLoadWithError error: Error) {
         
         // UI interrupt
-        if error?.code != 102 {
-            delegate?.didFail(self, error: error)
+        if (error as NSError).code != 102 {
+            self.delegate?.didFail(loginVC: self, error: error)
         }
     }
     

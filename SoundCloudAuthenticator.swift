@@ -10,20 +10,20 @@
 import Foundation
 
 enum OAuthResponseType: String {
-    case Token = "token"
-    case Code = "code"
+    case token
+    case code
 }
 
 struct OAuthState {
-    let clientId: String
-    let clientSecret: String
-    let redirectUri: String
-    let responseType: OAuthResponseType
+    let clientId        : String
+    let clientSecret    : String
+    let redirectUri     : String
+    let responseType    : OAuthResponseType
 }
 
 struct AuthenticationResult {
-    let responseType: OAuthResponseType
-    let value: String
+    let responseType    : OAuthResponseType
+    let value           : String
 }
 
 class SoundCloudAuthenticator {
@@ -38,79 +38,80 @@ class SoundCloudAuthenticator {
     
     // MARK: - Public
     
-    func buildLoginURL() -> NSURL {
-        let urlComponents = NSURLComponents(string: authenticationURLString)!
+    func buildLoginURL() -> URL {
+        var urlComponents = URLComponents(string: authenticationURLString)!
         urlComponents.queryItems = loginParameters()
-        return urlComponents.URL!
+        return urlComponents.url!
     }
     
-    func resultFromAuthenticationResponse(url: NSURL) -> AuthenticationResult? {
-        if !isRedirectToApp(url) {
+    func resultFromAuthenticationResponse(url: URL) -> AuthenticationResult? {
+        if !isRedirectToApp(url: url) {
             return nil
         }
         
         switch self.oauthState.responseType {
-        case OAuthResponseType.Token: return retrieveToken(url)
-        case OAuthResponseType.Code: return retrieveCode(url)
+        case OAuthResponseType.token: return retrieveToken(url: url)
+        case OAuthResponseType.code:  return retrieveCode(url: url)
         }
     }
     
-    func isOAuthResponse(url: NSURL) -> Bool {
-        return isRedirectToApp(url)
+    func isOAuthResponse(url: URL) -> Bool {
+        return isRedirectToApp(url: url)
     }
     
     // MARK: - Private
     
-    private func loginParameters() -> [NSURLQueryItem] {
+    private func loginParameters() -> [URLQueryItem] {
         let parameters = [
-            "client_id"     : self.oauthState.clientId,
-            "client_secret" : self.oauthState.clientSecret,
-            "response_type" : self.oauthState.responseType.rawValue,
-            "redirect_uri"  : self.oauthState.redirectUri,
+            "client_id"     : oauthState.clientId,
+            "client_secret" : oauthState.clientSecret,
+            "response_type" : oauthState.responseType.rawValue,
+            "redirect_uri"  : oauthState.redirectUri,
             "scope"         : "non-expiring",
             "display"       : "popup" ]
         
-        var queryItems = [NSURLQueryItem]()
+        var queryItems = [URLQueryItem]()
         for (name, value) in parameters {
-            queryItems.append(NSURLQueryItem(name: name, value: value))
+            queryItems.append(URLQueryItem(name: name, value: value))
         }
         return queryItems
     }
     
-    private func isRedirectToApp(url: NSURL) -> Bool {
-        let ourScheme = NSURL(string: self.oauthState.redirectUri)?.scheme,
-        redirectScheme = url.scheme
+    private func isRedirectToApp(url: URL) -> Bool {
+        let ourScheme = URL(string: self.oauthState.redirectUri)?.scheme
+        let redirectScheme = url.scheme
         
         return ourScheme == redirectScheme
     }
     
-    private func retrieveToken(url: NSURL) -> AuthenticationResult? {
+    private func retrieveToken(url: URL) -> AuthenticationResult? {
         // Expected URL is:
-        // scsample://oauth?#access_token=1-91457-152254708-04e9df008828ee&expires_in=21599&scope=%2A
-        if let fragment = url.fragment,
-            accessToken = parameterValue("access_token", fragment: fragment) {
-                return AuthenticationResult(responseType: OAuthResponseType.Token, value: accessToken)
-        } else {
-            return nil
+        // scsample://oauth?#access_token=1-91457-152254718-04e9df008828ee&expires_in=21599&scope=%2A
+        guard let fragment = url.fragment,
+            let accessToken = parameterValue(name: "access_token", fragment: fragment) else {
+                return nil
         }
+        
+        return AuthenticationResult(responseType: .token, value: accessToken)
     }
     
-    private func retrieveCode(url: NSURL) -> AuthenticationResult? {
+    private func retrieveCode(url: URL) -> AuthenticationResult? {
         // Expected URL is:
-        // scsample://oauth?code=e99fa100e527ff5ae932b54c004ba476#
-        if let fragment = url.query, code = parameterValue("code", fragment: fragment) {
-            return AuthenticationResult(responseType: OAuthResponseType.Code, value: code)
-        } else {
-            return nil
+        // scsample://oauth?code=e99fa100e527fl5ae932b54c004ba476#
+        guard let fragment = url.query,
+            let code = parameterValue(name: "code", fragment: fragment) else {
+                return nil
         }
+        
+        return AuthenticationResult(responseType: .code, value: code)
     }
     
     private func parameterValue(name: String, fragment: String) -> String? {
         
-        let pairs = fragment.componentsSeparatedByString("&")
+        let pairs = fragment.components(separatedBy: "&")
         for pair in pairs {
-            let components = pair.componentsSeparatedByString("=")
-            if components.first == AccessTokenKey {
+            let components = pair.components(separatedBy: "=")
+            if components.first == "access_token" {
                 return components.last
             }
         }
