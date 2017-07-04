@@ -27,9 +27,9 @@ class SoundCloudLoginViewController: UIViewController {
         super.viewDidLoad()
         
         authenticator = SoundCloudAuthenticator(oauthState: OAuthState(
-            clientId: "",       //SoundCloud ClientID,
-            clientSecret: "",   //SoundCloud ClientSecret,
-            redirectUri: "",    //SoundCloud RedirectURI,
+            clientId: SoundCloudClientID,
+            clientSecret: SoundCloudClientSecret,
+            redirectUri: SoundCloudClientRedirectURI,
             responseType: .token))
     }
     
@@ -68,6 +68,8 @@ extension SoundCloudLoginViewController : UIWebViewDelegate {
                     delegate.didFail(loginVC: self, error: nil)
                 }
             })
+            
+            return false
         }
         return true
     }
